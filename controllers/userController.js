@@ -5,7 +5,7 @@ import { hashPassword,comparePassword, generateToken } from "../utils/util.js";
 
 export const registerController = async (req,res,next) => {
     try{
-    const {name,username,email,password,phone,role,adharID,EPSICNumber,ITICertificateNumber} = req.body;
+    const {name,username,email,password,phone,role,adharID,EPSICNumber,ITICertificateNumber,substation_id} = req.body;
     if (!name || !username || !email || !password  || !phone  || !role ) {
 
        res.status(400).send({message:"All fields are required",status:"false",statusCode:400,user:[]});
@@ -26,11 +26,11 @@ export const loginController = async (req,res,next) => {
     try{
     const {username,password} = req.body;
     if (!username || !password ) {
-        res.status(400).send({message:"All fields are required",status:"false",statusCode:400,user:[]});
+        return res.status(400).send({message:"All fields are required",status:false,statusCode:400,user:[]});
     }
     const user = await userModel.findOne({username:username,password:password});
     if (!user) {
-        res.status(404).send({message:"User not found",status:"false",statusCode:404,user:[]});
+        return res.status(404).send({message:"User not found",status:false,statusCode:404,user:[]});
     }
     /* const isMatch = await comparePassword(password,user.password);
     if (!isMatch) {
@@ -38,9 +38,9 @@ export const loginController = async (req,res,next) => {
     } */
 
     const token = await generateToken(user._id);
-    res.status(200).send({message:"user logged in successfully",status:"true",statusCode:200,user:user,token:token});
+    return res.status(200).send({message:"user logged in successfully",status:true,statusCode:200,user:user,token:token});
     }catch(error){
-        res.status(500).send({message:"error occured in user login",status:"false",statusCode:500,user:[],errorMessage:error});
+        return res.status(500).send({message:"error occured in user login",status:false,statusCode:500,user:[],errorMessage:error});
     }
 };
 
@@ -88,7 +88,7 @@ export const userListController = async (req,res,next) => {
 export const updateUserController = async (req,res,next) => {
     try{
 
-    const {name,username,email,password,phone,role,adharID,EPSICNumber,ITICertificateNumber} = req.body;
+    const {name,username,email,password,phone,role,adharID,EPSICNumber,ITICertificateNumber,substation_id} = req.body;
 
     if (!name || !username || !email || !password  || !phone  || !role ) {
 
@@ -146,9 +146,12 @@ export const mobileLoginController = async (req, res) => {
 
     try{
     const { otp, mobile_number } = req.body;
-    const user = await userModel.findOne({phone:mobile_number});
+     if (!otp || !mobile_number ) {
+        return res.status(404).send({message:"fields can not be left blank",status:false,statusCode:404,user:[]});
+    }
+    const user = await userModel.findOne({phone:mobile_number,"otp.token":otp});
     if (!user) {
-        res.status(404).send({message:"User not found",status:"failed",statusCode:404,user:[]});
+       return res.status(404).send({message:"User not found",status:false,statusCode:404,user:[]});
     }
     let otpData = user.otp;
     
@@ -159,14 +162,14 @@ export const mobileLoginController = async (req, res) => {
        
         const token = await generateToken(user._id);
         
-        res.status(200).send({message:"user logged in successfully",status:"success",statusCode:200,user:user,token:token});
+        return res.status(200).send({message:"user logged in successfully",status:true,statusCode:200,user:user,token:token});
 
     }else{
-         return res.status(400).json({ message: 'Invalid OTP', statusCode: 400,status:"false" });
+         return res.status(400).json({ message: 'Invalid OTP', statusCode: 400,status:false,user:[] });
     }
 
     }catch(e){
-        res.status(500).send({message:"error occured in user login",status:"failed",statusCode:500,errorMessage:e});
+        return res.status(500).send({message:"error occured in user login",status:false,statusCode:500,errorMessage:e,user:[]});
     }
 
 }
@@ -185,7 +188,7 @@ export const getOTPController = (req, res) => {
         .then(async (user) => {
 
             if (!user) {
-                return res.status(400).json({ message: 'Mobile Number does not exist.', status: 400 });
+                return res.status(400).send({ message: 'Mobile Number does not exist.', statusCode:400,status: false });
             }
             const otp = generateOTP();
             const dateTime = new Date();
@@ -196,16 +199,15 @@ export const getOTPController = (req, res) => {
                 { $set: { otp: { token: otp, expiry_time: expiry_time.toISOString() } } }
 
             ).then((result) => {
-                return res.status(200).json({ otp, message: 'Otp has been sent successfully on your mobile no.', status: 200 });
+                return res.status(200).send({ otp, message: 'Otp has been sent successfully on your mobile no.', statusCode: 200, status:true });
             })
                 .catch((error) => {
-                    console.error("Error finding user:", error);
-                    return res.status(400).json({ message: 'Internal server error. ', status: 400 });
+                    return res.status(400).send({ message: 'Internal server error. ', statusCode: 400, status:false,errorMessage:error });
                 });
         })
         .catch((error) => {
             console.error("Error finding user:", error);
-            return res.status(400).json({ message: 'Internal server error. ', status: 400 });
+            return res.status(400).json({ message: 'Internal server error. ', statusCode: 400,status:false,errorMessage:error });
         });
 };
 

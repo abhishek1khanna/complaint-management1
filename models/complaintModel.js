@@ -95,8 +95,7 @@ const complaintSchema = new mongoose.Schema({
          type: String,
       },
       createdBy: {
-          type: mongoose.ObjectId,
-          ref: "users",
+          type: String,
         },  
       gangDetail: {
         gangName: String,
@@ -106,10 +105,20 @@ const complaintSchema = new mongoose.Schema({
         gangSubstation: String,
         // Add any other relevant fields for gang details
       },
+       substation_id:{
+           type: mongoose.ObjectId,
+            ref: "substation",
+        },
+        latitude: {
+          type: String,
+        },
+        longitude: {
+          type: String,
+        },
       complaintStatus: {
         type: String,
         required: true,
-        enum: ['Open', 'In Progress', 'Closed', 'On Hold','Approved', 'Rejected', 'Shutdown','Pending'],
+        enum: ['Open','Assigned', 'In Progress', 'Closed', 'On Hold','Approved', 'Rejected', 'Shutdown','Pending'],
         default: 'Open'
       },
      

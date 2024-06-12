@@ -16,10 +16,10 @@ function getDatePart(date) {
 export const addGangController = async (req,res,next) => {
     try{
         
-    const {gangLeaderID,gangLeaderName,gangName,gangMobile,tools_availabe,location,substation,feeder,security_equipment} = req.body;
+    const {gangLeaderID,gangLeaderName,gangName,gangMobile,tools_availabe,location,substation,feeder,security_equipment,latitude,longitude,substation_id} = req.body;
     if (!gangLeaderID) {
 
-       res.status(400).send({message:"All fields are required",status:"failed",statusCode:400,gang:[]});
+       return res.status(400).send({message:"All fields are required",status:false,statusCode:400,gang:[]});
     }
    
 
@@ -27,12 +27,12 @@ export const addGangController = async (req,res,next) => {
     
    // registrationDate = getDatePart(new Date());
 
-    const user = await new gangModel(
-       { gangLeaderID,gangLeaderName,gangName,gangMobile,tools_availabe,location,substation,feeder,security_equipment,createdBy:_id }
+    const gang = await new gangModel(
+       { gangLeaderID,gangLeaderName,gangName,gangMobile,tools_availabe,location,substation,feeder,security_equipment,createdBy:_id, latitude,longitude,substation_id}
     ).save();
-     res.status(201).send({message:"gang created successfully",status:"success",statusCode:201,gang:user});
+     return res.status(201).send({message:"gang created successfully",status:true,statusCode:201,gang:gang});
   } catch (error) {
-    res.status(500).send({message:"error occured in gang registration",status:"failed",statusCode:500,errorMessage:error});
+    return res.status(500).send({message:"error occured in gang registration",status:false,statusCode:500,errorMessage:error});
   }
 }
 
@@ -84,12 +84,12 @@ export const addMembersSingleController = async (req,res) =>{
                 members : memberDetail
             }
         },{new : true}).then(result => {
-            res.status(201).send({message:"gang members added successfully",status:"success",statusCode:201,gang:result});
+            return res.status(201).send({message:"gang members added successfully",status:true,statusCode:201,gang:result});
         }).catch(err => {
-            res.status(400).send({message:"error",status:"failed",statusCode:400,errorMessage:err,gang:[]});
+            return res.status(400).send({message:"error",status:false,statusCode:400,errorMessage:err,gang:[]});
         });
     }catch(error){
-     res.status(500).send({message:"error occured in gang member updation",status:"failed",statusCode:500,errorMessage:error});
+     return res.status(500).send({message:"error occured in gang member updation",status:false,statusCode:500,errorMessage:error});
     }
 }
 
@@ -107,7 +107,7 @@ export const removeMembersController = async (req,res) =>{
             memberDetail.EPSICNumber = user.EPSICNumber;
             memberDetail.ITICertificateNumber = user.ITICertificateNumber;
         }
-        console.log(memberDetail);
+        // console.log(memberDetail);
 
         const originalDate = new Date();
         // const datePart = getDatePart(originalDate);
@@ -117,21 +117,21 @@ export const removeMembersController = async (req,res) =>{
                 members : { memberIDIs: memberID }
             }
         },{new : true}).then(result => {
-            res.status(201).send({message:"gang members updated successfully",status:"success",statusCode:201,gang:result});
+            return res.status(201).send({message:"gang members updated successfully",status:true,statusCode:201,gang:result});
         }).catch(err => {
-            res.status(400).send({message:"error",status:"failed",statusCode:400,errorMessage:err,gang:[]});
+            return res.status(400).send({message:"error",status:false,statusCode:400,errorMessage:err,gang:[]});
         });
     }catch(error){
-     res.status(500).send({message:"error occured in gang member updation",status:"failed",statusCode:500,errorMessage:error});
+     return res.status(500).send({message:"error occured in gang member updation",status:false,statusCode:500,errorMessage:error,gang:[]});
     }
 }
 
 
 export const editGangController = (req, res) => {
     try{
-        const {gangID,gangLeaderID,gangLeaderName,gangName,gangMobile,tools_availabe,location,substation,feeder,security_equipment} = req.body;
+        const {gangID,gangLeaderID,gangLeaderName,gangName,gangMobile,tools_availabe,location,substation,feeder,security_equipment,latitude,longitude,substation_id} = req.body;
         if (!gangID) {
-            res.status(400).send({message:"All fields are required",status:"failed",statusCode:400,gang:[]});
+            return res.status(400).send({message:"All fields are required",status:false,statusCode:400,gang:[]});
         }
         const updateResult = gangModel.findOneAndUpdate(
             { _id: gangID },
@@ -144,14 +144,17 @@ export const editGangController = (req, res) => {
                 location: location,
                 substation: substation,
                 feeder: feeder,
-                security_equipment: security_equipment
+                security_equipment: security_equipment,
+                latitude:latitude,
+                longitude:longitude,
+                substation_id:substation_id
             },{new : true}).then(result => {
-            res.status(201).send({message:"gang updated successfully",status:"success",statusCode:201,gang:result});
+            return res.status(201).send({message:"gang updated successfully",status:true,statusCode:201,gang:result});
         }).catch(err => {
-            res.status(400).send({message:"error in gang updation",status:"failed",statusCode:400,errorMessage:err,gang:[]});
+            return res.status(400).send({message:"error in gang updation",status:false,statusCode:400,errorMessage:err,gang:[]});
         });
     }catch(err) {
-        res.status(500).send({message:"error occured in gang updation",status:"failed",statusCode:500,errorMessage:err});
+        return res.status(500).send({message:"error occured in gang updation",status:false,statusCode:500,errorMessage:err,gang:[]});
     }
 };
 
@@ -177,15 +180,15 @@ export const gangListController = (req, res) => {
                     createdAt: { $gte: firstDayOfMonth, $lte: now } // Filter records for the current month
                 }, { page: pageNumber, limit: pageSize }, (err, result) => {
                 if (err) {
-                res.status(500).send({message:"error occured in gang member list",status:"failed",statusCode:500,errorMessage:error,gangs:[]});
+                return res.status(500).send({message:"error occured in gang member list",status:false,statusCode:500,errorMessage:err,gangs:[]});
                 }else{
                 const { docs, total, limit, page, totalPages,prevPage,nextPage    } = result;
-                res.status(200).send({ gangs: docs, Total:total, Limit:limit, Page:page, pages:totalPages,prevPage:prevPage, nextPage:nextPage});
+                return res.status(200).send({ status:true,statusCode:200,gangs: docs, Total:total, Limit:limit, Page:page, pages:totalPages,prevPage:prevPage, nextPage:nextPage});
                 }
                 });
         
             }catch(error){
-                res.status(500).send({message:"error occured in gang member list",status:"failed",statusCode:500,errorMessage:error,gangs:[]});
+                return res.status(500).send({message:"error occured in gang member list",status:false,statusCode:500,errorMessage:error,gangs:[]});
         
             }
 
@@ -202,15 +205,15 @@ export const gangListController = (req, res) => {
                 {$or:[{gangName:{$regex:req.body.search}},{gangLeaderName:{$regex:req.body.search}},{substation:{$regex:req.body.search}},{gangMobile:{$regex:req.body.search}}]}
         ]}, { page: pageNumber, limit: pageSize }, (err, result) => {
             if (err) {
-                res.status(500).send({message:"error occured in gang member list",status:"failed",statusCode:500,errorMessage:err});
+                return res.status(500).send({message:"error occured in gang member list",status:false,statusCode:500,errorMessage:err});
             }else{
             const { docs, total, limit, page, totalPages,prevPage,nextPage    } = result;
-            res.status(200).send({ gangs: docs, Total:total, Limit:limit, Page:page, pages:totalPages,prevPage:prevPage, nextPage:nextPage});
+            return res.status(200).send({ status:true,statusCode:200,gangs: docs, Total:total, Limit:limit, Page:page, pages:totalPages,prevPage:prevPage, nextPage:nextPage});
             }
             });
     
         }catch(error){
-                res.status(500).send({message:"error occured in gang member list",status:"failed",statusCode:500,errorMessage:error});
+                return res.status(500).send({message:"error occured in gang member list",status:false,statusCode:500,errorMessage:error});
         }
     }
 

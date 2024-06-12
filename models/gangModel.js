@@ -16,6 +16,10 @@ const gangSchema = new mongoose.Schema({
         gangLeaderName:{
             type: String,
         },
+        substation_id:{
+           type: mongoose.ObjectId,
+            ref: "substation",
+        },
         createdBy: {
           type: mongoose.ObjectId,
           ref: "users",
@@ -34,7 +38,12 @@ const gangSchema = new mongoose.Schema({
         location: {
           type: String,
         },
-      
+        latitude: {
+          type: String,
+        },
+        longitude: {
+          type: String,
+        },
         substation: {
           type: String,
         },

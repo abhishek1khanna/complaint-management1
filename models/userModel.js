@@ -11,6 +11,10 @@ const userSchema = new mongoose.Schema({
         required: true,
         unique: true
     },
+    substation_id:{
+           type: mongoose.ObjectId,
+            ref: "substation",
+        },
      role: {
         type: String,
         required: true,

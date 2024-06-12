@@ -1,7 +1,7 @@
 import express from "express";
 import { registerController,loginController,userListController,updateUserController,searchController,getOTPController,mobileLoginController,logoutController } from "../controllers/userController.js";
 import { isAuth } from "../middleware/isAuth.js";
-import { addComplaintController,addStaffRemarksController,addSelfRemarksController,assignComplainController,shutDownRequestController, listComplaintController,listComplaintCurrentMonthController,updateComplaintStatusController,updateComplaintController,getDataFromConsumer } from "../controllers/complaintController.js";
+import { addComplaintController,addStaffRemarksController,addSelfRemarksController,assignComplainController,shutDownRequestController, listComplaintController,listComplaintCurrentMonthController,updateComplaintStatusController,updateComplaintController,getDataFromConsumer,autoAssign } from "../controllers/complaintController.js";
 import formidable from 'express-formidable';
 import complaintModel from "../models/complaintModel.js";
 
@@ -76,8 +76,9 @@ router.put("/add-self-remarks", isAuth,  addSelfRemarksController);
 router.put("/assign-complain",    assignComplainController);
 router.put("/shutdown-request",  shutDownRequestController);
 router.post("/list-complaints", isAuth, listComplaintController);
-router.post("/get-current-month-complaints",   listComplaintCurrentMonthController);
+router.post("/get-current-month-complaints", isAuth,  listComplaintCurrentMonthController);
 router.put("/complaint-status",  isAuth, updateComplaintStatusController);
+router.post("/auto-assign-complaint",  autoAssign);
 
 
 

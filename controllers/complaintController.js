@@ -6,6 +6,7 @@ import path from 'path';
 import fs from 'fs';
 import complaintAgencyModel from "../models/complaintAgencyModel.js";
 import gangModel from "../models/gangModel.js";
+import haversine from 'haversine';
 const __dirname = path.resolve(path.dirname('')); 
 
 
@@ -75,8 +76,13 @@ export const updateComplaintController = async (req, res) => {
     try{
         const {complaintID,complaintStatus,staff_remark,self_remark,assign_to,shutdown_start_time,shutdown_end_time} = req.body;
         if (!complaintID) {
-            res.status(400).send({message:"All fields are required",status:"failed",statusCode:400,complaint:[]});
+            return res.status(400).send({message:"All fields are required",status:false,statusCode:400,complaint:[]});
         }
+         var complaintDataIs = await complaintModel.findById(complaintID); 
+         if(!complaintDataIs){
+            return res.status(404).send({message:"complaint not found",status:false,statusCode:404,complaint:[]});
+
+         }
             if (complaintStatus){
                 const updateResult = await complaintModel.findOneAndUpdate(
                 { _id: complaintID },
@@ -126,13 +132,15 @@ export const updateComplaintController = async (req, res) => {
                     gangName : gang.gangName,
                     gangMobileNo : gang.gangMobile,
                     gangSubstation : gang.substation
-                }}});
+                },
+                complaintStatus:"Assigned" 
+            }});
                 }
             }
-            if (shutdown_start_time != '' && shutdown_end_time != ''){
+            if (shutdown_start_time != undefined && shutdown_end_time != undefined){
 
                 // var user = await userModel.findById(requested_by);
-
+                console.log(shutdown_start_time,shutdown_end_time);
                 if(1==1){
                      await complaintModel.findByIdAndUpdate(complaintID,{
                     $push : {
@@ -145,10 +153,10 @@ export const updateComplaintController = async (req, res) => {
             }
 
             if (req.file) {
-        
+                console.log(req.file);
                 const filePath = req.file.path;
                 const fileName = req.file.filename;
-            
+                
                 await complaintModel.findByIdAndUpdate(complaintID,{
                     $push : {
                         siteDocuments : {
@@ -163,11 +171,11 @@ export const updateComplaintController = async (req, res) => {
             }
             
             const complaintData = await complaintModel.findById(complaintID);
-            res.status(201).send({message:"complaint updated successfully",status:"success",statusCode:201,complaint:complaintData});
+            return res.status(201).send({message:"complaint updated successfully",status:true,statusCode:201,complaint:complaintData});
            
         }
         catch(err) {
-        res.status(500).send({message:"error occured in complaint status updation",status:"failed",statusCode:500,errorMessage:err,complaint:[]});
+        return res.status(500).send({message:"error occured in complaint status updation",status:false,statusCode:500,errorMessage:err,complaint:[]});
         }
 };
 
@@ -270,7 +278,8 @@ export const assignComplainController = async (req, res) => {
                     gangName : user.name,
                     gangMobileNo : user.phone,
                     gangSubstation : 'gangSubstation',
-                }
+                },
+                 complaintStatus:"Assigned" 
             }
         },{new : true}).then(result => {
             res.status(201).send({message:"complaint assigned successfully",status:"success",user:result});
@@ -456,7 +465,7 @@ export const listComplaintController = (req, res) => {
         
     
         }catch(error){
-            res.status(500).send({message:"error in fetching record",status:"failed",statusCode:500,errorMessage:err,complaints:[]});
+            res.status(500).send({message:"error in fetching record",status:false,statusCode:500,errorMessage:err,complaints:[]});
 
         }
     }
@@ -469,12 +478,18 @@ export const listComplaintCurrentMonthController = async (req, res) =>{
         const now = new Date();
         // Get the first day of the current month
         const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const {_id} = req.encodedUser;
 
+        const loginPerson = await userModel.findById(_id);
+        var substationID = loginPerson.substation_id
+
+        // console.log(_id);
         // Perform the aggregation
         const results = await complaintModel.aggregate([
             {
                 $match: {
-                    createdAt: { $gte: firstDayOfMonth, $lte: now } // Filter records for the current month
+                    createdAt: { $gte: firstDayOfMonth, $lte: now },
+                    substation_id:substationID // Filter records for the current month
                 }
             },
             {
@@ -493,9 +508,14 @@ export const listComplaintCurrentMonthController = async (req, res) =>{
                 }
             }
         ]);
-        res.status(200).send( {complaints:results});
+        if(results.length == 0){
+             return res.status(200).send( {statusCode:200,status:true,message:"no record found",complaints:[]});
+        }else{
+            return res.status(200).send( {statusCode:200,status:true,complaints:results});
+        }
+       
     }catch(err) {
-        res.status(400).send( {error:err});
+        return res.status(400).send( {statusCode:400,status:false,error:err,complaints:[]});
     }
 }
 
@@ -619,7 +639,7 @@ export const getDataFromConsumer = async (req, res) => {
    try{
     const authHeader = req.headers['authorization'];
    if (!authHeader || !authHeader.startsWith('Basic ')) {
-       return res.status(401).json({ message: 'Missing or invalid authorization header', status: 401 });
+       return res.status(401).send({ message: 'Missing or invalid authorization header', statusCode: 401,status:false,complaint:[] });
    } 
  
    // Decode the Basic Auth cr edentials
@@ -627,7 +647,7 @@ export const getDataFromConsumer = async (req, res) => {
    const credentials = Buffer.from(base64Credentials, 'base64').toString('ascii');
    const [username, password] = credentials.split(':');
    if (!username || !password) {
-       return res.status(400).json({ message: 'Username and password are required',status: 400 });
+       return res.status(400).send({ message: 'Username and password are required',statusCode: 400,status:false,complaint:[] });
    }
 
 
@@ -635,12 +655,12 @@ export const getDataFromConsumer = async (req, res) => {
           // console.log("storedConsumer",storedConsumer);
 
    if (!storedConsumer) {
-       return res.status(404).json({ message: 'complaint agency not found', status: 404 });
+       return res.status(404).send({ message: 'complaint agency not found', statusCode: 404,status:false,complaint:[] });
    }
 
 
     if(password != storedConsumer.password){
-        return res.status(401).json({ message: 'Invalid credentials',status: 401 });
+        return res.status(401).send({ message: 'Invalid credentials',statusCode: 401,status:false,complaint:[] });
     }
 //    // Compare the hashed password
 //    const passwordMatch = await bcrypt.compare(password, storedConsumer.password);
@@ -678,15 +698,18 @@ const  AGENCY_SOURCE =   storedConsumer._id;
         XEN_MOBILE,
         STS,
         COMPLAINT_SOURCE,
-        // AGENCY_SOURCE
+        CREATED_BY,
+        latitude,
+        longitude,
+        substation_id
     } = req.body;
 
-   
+  
 
     const complaintNoExists = await complaintModel.findOne({ complaintNo:COMPLAINT_NO });
 
     if (complaintNoExists) {
-        return res.status(409).json({ message: 'Complaint already exists', status: 409 });
+        return res.status(409).json({ message: 'Complaint already exists', statusCode: 409,status:false,complaint:[] });
     }
 
 
@@ -717,18 +740,119 @@ const complaintData = {
     XENMobile: XEN_MOBILE,
     sts: STS,
     complaintSource: COMPLAINT_SOURCE,
-    agencySource: '6644523fc520fd23960dc1d7'
-};
+    createdBy:CREATED_BY,
+    agencySource: '6644523fc520fd23960dc1d7',
+    latitude:latitude,
+    longitude:longitude,
+    substation_id:substation_id
+    
+};  
+  // console.log('bbbb',complaintData);
 
-  //  console.log('bbbb',complaintData);
-
-    const user = await new complaintModel(
+    const complaint = await new complaintModel(
       complaintData
     ).save();
-     res.status(201).send({message:"complaint created successfully",status:"success"});
+     return res.status(201).send({message:"complaint created successfully",status:true,statusCode:201,complaint:complaint});
     }catch(err) {
-         res.status(500).send({message:"error in complaint creation",statusCode:500,status:"false",err:err});
+        return res.status(500).send({message:"error in complaint creation",statusCode:500,status:false,err:err,complaint:[]});
         
     }
 };
 
+
+
+
+
+
+
+export const autoAssign = async (req, res) => {
+
+    try {
+        const complains = await complaintModel.find({  complaintStatus: "Open" }).select('latitude longitude complaintNo _id');
+        const gangLocations = await gangModel.find({}).select('latitude longitude gangMobile substation gangName _id');
+      
+
+        /* const gangLocations = [
+            { id: "Aminabad LKO", latitude: 26.8540, longitude: 80.9357 },
+            { id: "Alambagh LKO", latitude: 26.7947, longitude: 80.9102 },
+            { id: "Gomti Nagar LKO", latitude: 26.852, longitude: 81.0236 },
+
+
+            { id: "Mall Road CNB", latitude: 26.4776, longitude: 80.3209 },
+            { id: "Swaroop Nagar CNB", latitude: 26.4865, longitude: 80.3005 },
+            { id: "Panki CNB", latitude: 26.4652, longitude: 80.2191 },
+          ]; */
+
+
+          // Function to find the nearest gang
+            const findNearestGang = (complaint, gangs) => {
+                let nearestGang = null;
+                let shortestDistance = Infinity;
+            
+                gangs.forEach(gang => {
+                const distance = haversine(complaint, gang);
+                if (distance < shortestDistance) {
+                    shortestDistance = distance;
+                    nearestGang = gang;
+                }
+                });
+            
+                return nearestGang;
+            };
+
+
+            // Function to find nearest gangs for all complaints
+            const findNearestGangsForComplaints = async (complaints, gangs) => {
+                return complaints.map(complaint => ({
+                complaint,
+                nearestGang: findNearestGang(complaint, gangs)
+                }));
+            };
+            
+            ///console.log('aaaaaaa',complains, gangLocations);
+  // Find the nearest gangs for all complaint locations
+            const nearestGangs = await findNearestGangsForComplaints(complains, gangLocations);
+            //console.log('aaaaaaa nearestGangs',nearestGangs);
+  
+            nearestGangs.forEach(async ({ complaint, nearestGang }) => {
+            //console.log(`Complaint No ${complaint.complaintNo}: Complaint at (${complaint.latitude}, ${complaint.longitude}) - Nearest Gang:`, nearestGang);
+    
+   // assing gang to complaint
+
+        // var user = await gangModel.findById(nearestGang._id);
+        if(1==1){
+            // console.log(user.firstname);
+        console.log('bbbbbb',complaint.complaintNo,nearestGang._id,nearestGang.gangName);
+       await complaintModel.findByIdAndUpdate(complaint._id,{
+            $set : {
+                gangDetail : {
+                    gangId :  nearestGang._id,
+                    gangName : nearestGang.gangName,
+                    gangMobileNo : nearestGang.gangMobile,
+                    gangSubstation : nearestGang.substation
+                },
+                
+                   complaintStatus:"Assigned" 
+                
+            }
+        },{new : true}).then(result => {
+            return res.status(201).send({message:"complaint assigned successfully",status:true,statusCode:201,user:result});
+        }).catch(err => {
+             return res.status(201).send({message:"Gang not found!",status:false,statusCode:201,user:[]});
+        })
+        }else{
+            return res.status(201).send({message:"Gang not found!",status:false,statusCode:201,user:[]});
+        }
+   
+
+
+});
+
+
+
+         return res.status(200).json({ message: 'Complaints Assigned successfully.', statusCode: 200,status: true });
+    } catch (error) {
+        console.error("Error updating complaints:", error);
+        return res.status(400).json({ message: 'Internal server error.', statusCode: 400,status: false});
+    }
+};
