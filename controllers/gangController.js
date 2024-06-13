@@ -158,12 +158,17 @@ export const editGangController = (req, res) => {
     }
 };
 
-export const gangListController = (req, res) => {
+export const gangListController = async (req, res) => {
    
 
-   
+        var substationID = '';
         const {search} = req.body;
 
+        const {_id} = req.encodedUser;
+        var user = await userModel.findById(_id);
+        if (user){
+           substationID =  user.substation_id;
+        }
 
         const now = new Date();
         const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -171,24 +176,25 @@ export const gangListController = (req, res) => {
 
         if (!search) {
     
-           
+          
             try{
                 const pageNumber = req.query.page || 1;
                 const pageSize = req.query.pageSize || 50;
         
                 gangModel.paginate({
-                    createdAt: { $gte: firstDayOfMonth, $lte: now } // Filter records for the current month
+                   substation_id:substationID// Filter records for the current month
                 }, { page: pageNumber, limit: pageSize }, (err, result) => {
                 if (err) {
-                return res.status(500).send({message:"error occured in gang member list",status:false,statusCode:500,errorMessage:err,gangs:[]});
+                return res.status(200).send({message:"no record found",status:false,statusCode:200,errorMessage:err,gangs:[]});
                 }else{
-                const { docs, total, limit, page, totalPages,prevPage,nextPage    } = result;
-                return res.status(200).send({ status:true,statusCode:200,gangs: docs, Total:total, Limit:limit, Page:page, pages:totalPages,prevPage:prevPage, nextPage:nextPage});
+                 console.log(result);
+                const { docs, totalDocs, limit, page, totalPages,prevPage,nextPage} = result;
+                return res.status(200).send({ status:true,statusCode:200,gangs: docs, Total:totalDocs, Limit:limit, Page:page, pages:totalPages,prevPage:prevPage, nextPage:nextPage});
                 }
                 });
         
             }catch(error){
-                return res.status(500).send({message:"error occured in gang member list",status:false,statusCode:500,errorMessage:error,gangs:[]});
+                return res.status(400).send({message:"no record found",status:false,statusCode:400,errorMessage:error,gangs:[]});
         
             }
 
@@ -201,11 +207,11 @@ export const gangListController = (req, res) => {
     
             const createdBy = req.body.createdBy;
     
-            gangModel.paginate({$and:[{createdBy:createdBy},
+            gangModel.paginate({$and:[{substation_id:substationID},
                 {$or:[{gangName:{$regex:req.body.search}},{gangLeaderName:{$regex:req.body.search}},{substation:{$regex:req.body.search}},{gangMobile:{$regex:req.body.search}}]}
         ]}, { page: pageNumber, limit: pageSize }, (err, result) => {
             if (err) {
-                return res.status(500).send({message:"error occured in gang member list",status:false,statusCode:500,errorMessage:err});
+                return res.status(400).send({message:"error occured in gang member list",status:false,statusCode:400,errorMessage:err});
             }else{
             const { docs, total, limit, page, totalPages,prevPage,nextPage    } = result;
             return res.status(200).send({ status:true,statusCode:200,gangs: docs, Total:total, Limit:limit, Page:page, pages:totalPages,prevPage:prevPage, nextPage:nextPage});
@@ -213,7 +219,7 @@ export const gangListController = (req, res) => {
             });
     
         }catch(error){
-                return res.status(500).send({message:"error occured in gang member list",status:false,statusCode:500,errorMessage:error});
+                return res.status(400).send({message:"error occured in gang member list",status:false,statusCode:400,errorMessage:error});
         }
     }
 

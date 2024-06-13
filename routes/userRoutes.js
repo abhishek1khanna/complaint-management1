@@ -1,8 +1,8 @@
 import express from "express";
 import { registerController,loginController,userListController,updateUserController,searchController,getOTPController,mobileLoginController,logoutController } from "../controllers/userController.js";
 import { isAuth } from "../middleware/isAuth.js";
-import { addComplaintController,addStaffRemarksController,addSelfRemarksController,assignComplainController,shutDownRequestController, listComplaintController,listComplaintCurrentMonthController,updateComplaintStatusController,updateComplaintController,getDataFromConsumer,autoAssign } from "../controllers/complaintController.js";
-import formidable from 'express-formidable';
+import { addComplaintController,addStaffRemarksController,addSelfRemarksController,assignComplainController,shutDownRequestController, listComplaintController,listComplaintCurrentMonthController,updateComplaintStatusController,updateComplaintController,getDataFromConsumer,autoAssign,listComplaintCurrentMonthMobileController,webDashboardController } from "../controllers/complaintController.js";
+
 import complaintModel from "../models/complaintModel.js";
 
 import multer from 'multer';
@@ -70,13 +70,18 @@ router.post("/user-search", isAuth,  searchController);
 router.post("/get-complaint-from-consumer", getDataFromConsumer);
 
 router.post("/add-complaint", isAuth,  addComplaintController);
-router.put("/update-complaint", upload.single('avatar'),  updateComplaintController);
+router.put("/update-complaint", isAuth, upload.array('avatar',10),  updateComplaintController);
 router.put("/add-staff-remarks", isAuth,   addStaffRemarksController);
 router.put("/add-self-remarks", isAuth,  addSelfRemarksController);
 router.put("/assign-complain",    assignComplainController);
 router.put("/shutdown-request",  shutDownRequestController);
 router.post("/list-complaints", isAuth, listComplaintController);
 router.post("/get-current-month-complaints", isAuth,  listComplaintCurrentMonthController);
+router.post("/mobile-dashboard",  isAuth,  listComplaintCurrentMonthMobileController);
+
+router.post("/web-dashboard",  isAuth,  webDashboardController);
+
+
 router.put("/complaint-status",  isAuth, updateComplaintStatusController);
 router.post("/auto-assign-complaint",  autoAssign);
 
@@ -91,7 +96,7 @@ router.post("/list-gang", isAuth,   gangListController);
 
 
 
-router.put("/add-sitephoto/:cid",upload.single('avatar'), async (req, res) => {
+router.put("/add-sitephoto/:cid",upload.array('avatar',10), async (req, res) => {
     if (!req.file) {
         return res.status(400).send('No file uploaded.');
     }

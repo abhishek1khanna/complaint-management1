@@ -4,6 +4,7 @@ import userRoutes from './routes/userRoutes.js';
 import connectDB from "./config/conn.js";
 import {errorHandler} from "./middleware/errorHandler.js";
 import cors from 'cors';
+import path from 'path';
 dotenv.config();
 const app = express();
 app.use(express.json());
@@ -11,6 +12,10 @@ connectDB();
 
 const port = process.env.PORT || 5000;
 
+app.use('/uploads', express.static(path.join('', 'uploads')));
+
+// const serverURL = `${req.protocol}://${req.get('host')}`; //http://localhost:5000
+// const avatarPath = `http://localhost:5000/${user.id}/${newFileName}`; //http://localhost:5000/64fb0a40db0abdff97117746/avatar-64fb0a40db0abdff97117746.jpeg
 
 app.use(cors());
 app.use(express.urlencoded({ extended: false }));
@@ -34,6 +39,6 @@ app.all('*', (req, res,next) => {
 
 app.use(errorHandler);
 
-app.listen(5000, () => {
+app.listen(port, () => {
     console.log(`Server is running on port ${port}`);
 });

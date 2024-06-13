@@ -74,6 +74,19 @@ export const addComplaintController = async (req,res,next) => {
 
 export const updateComplaintController = async (req, res) => {
     try{
+        
+        const {_id} = req.encodedUser;
+        var requestBy = '';
+        var requestByID = '';
+
+         var userDetail = await userModel.findById(_id);
+        if(userDetail){
+            requestBy = userDetail.name;
+            requestByID = userDetail._id;
+        }
+        
+       //  console.log('reqqqqqq',requestBy,requestByID);
+
         const {complaintID,complaintStatus,staff_remark,self_remark,assign_to,shutdown_start_time,shutdown_end_time} = req.body;
         if (!complaintID) {
             return res.status(400).send({message:"All fields are required",status:false,statusCode:400,complaint:[]});
@@ -99,7 +112,8 @@ export const updateComplaintController = async (req, res) => {
                     staffRemarks : {
                         remark : staff_remark,
                         date : originalDate,
-                        remarkBy : '1',
+                         remarkBy : requestBy,
+                         remarkByID : requestByID
                     }
                 }
                 });
@@ -113,7 +127,8 @@ export const updateComplaintController = async (req, res) => {
                     selfRemarks : {
                         remark : self_remark,
                         date : originalDate,
-                        remarkBy : '1',
+                         remarkBy : requestBy,
+                         remarkByID : requestByID
                     }
                 }
                 });
@@ -121,7 +136,7 @@ export const updateComplaintController = async (req, res) => {
             if (assign_to){
                 
                  var gang = await gangModel.findById(assign_to);
-                 console.log(gang);   
+                 
 
                 if(gang){
         
@@ -140,20 +155,43 @@ export const updateComplaintController = async (req, res) => {
             if (shutdown_start_time != undefined && shutdown_end_time != undefined){
 
                 // var user = await userModel.findById(requested_by);
-                console.log(shutdown_start_time,shutdown_end_time);
+                
                 if(1==1){
                      await complaintModel.findByIdAndUpdate(complaintID,{
                     $push : {
                             shutdown : {
                             startTime : shutdown_start_time,
-                            endTime : shutdown_end_time
+                            endTime : shutdown_end_time,
+                            requestBy : requestBy,
+                            requestByID : requestByID,
                         }
                     }});
                 }
             }
+             //  console.log('filesss1',req.file);
+             //  console.log('filesss2',req.files); 
+            if (req.files) {
 
-            if (req.file) {
-                console.log(req.file);
+                const fileArr = req.files;
+                fileArr.forEach(async (file) => {
+                    
+                    const filePath = file.path;
+                    const fileName = file.filename;
+                    
+                    await complaintModel.findByIdAndUpdate(complaintID,{
+                        $push : {
+                            siteDocuments : {
+                                documentName : fileName,
+                                uploadDate : new Date(),
+                                documentURL : filePath,
+                                uploadBy:requestBy,
+                                uploadByID : requestByID,
+                            }
+                        }
+                    });
+                });
+                
+              /*  console.log('filesss',req.file);
                 const filePath = req.file.path;
                 const fileName = req.file.filename;
                 
@@ -163,9 +201,11 @@ export const updateComplaintController = async (req, res) => {
                             documentName : fileName,
                             uploadDate : new Date(),
                             documentURL : filePath,
+                            uploadBy:requestBy,
+                            uploadByID : requestByID,
                         }
                     }
-                });
+                }); */
 
 
             }
@@ -175,7 +215,7 @@ export const updateComplaintController = async (req, res) => {
            
         }
         catch(err) {
-        return res.status(500).send({message:"error occured in complaint status updation",status:false,statusCode:500,errorMessage:err,complaint:[]});
+        return res.status(400).send({message:"error occured in complaint status updation",status:false,statusCode:400,errorMessage:err,complaint:[]});
         }
 };
 
@@ -267,7 +307,7 @@ export const assignComplainController = async (req, res) => {
      try{
         const {complain_no,gang_id} = req.body;
 
-        var user = await userModel.findById(gang_id);
+        var user = await gangModel.findById(gang_id);
         if(user){
             // console.log(user.firstname);
         
@@ -275,25 +315,23 @@ export const assignComplainController = async (req, res) => {
             $set : {
                 gangDetail : {
                     gangId :  user._id,
-                    gangName : user.name,
-                    gangMobileNo : user.phone,
-                    gangSubstation : 'gangSubstation',
+                    gangName : user.gangName,
+                    gangMobileNo : user.gangMobile,
+                    gangSubstation : user.substation
                 },
                  complaintStatus:"Assigned" 
             }
         },{new : true}).then(result => {
-            res.status(201).send({message:"complaint assigned successfully",status:"success",user:result});
+            return res.status(200).send({message:"complaint assigned successfully",status:true,statusCode:200});
         }).catch(err => {
-            const errormsg = new Error(err.message);
-            errormsg.statusCode = 400;
-            next(errormsg);
+            return res.status(400).send({message:"error in complaint assignment",status:false,statusCode:400});
+
         })
         }else{
-            res.status(201).send({message:"Gang not found!",status:"error",user:[]});
+            return res.status(400).send({message:"error in complaint assignment",status:false,statusCode:400});
         }
     }catch(err){
-        const errormsg = new Error(err.message);
-        errormsg.statusCode = 400;
+            return res.status(400).send({message:"error in complaint assignment",status:false,statusCode:400});
        
     }
 }
@@ -329,7 +367,7 @@ export const shutDownRequestController = async (req, res) => {
 }
 
 
-export const listComplaintController = (req, res) => {
+export const listComplaintController = async (req, res) => {
    
         const {search} = req.body;
 
@@ -375,16 +413,16 @@ export const listComplaintController = (req, res) => {
             const userID = req.body.userID;
             const complaintno = req.body.complaintno;
             const search = req.body.search;
-            if (userID){
+            if ( 1==2 ){ // userID
 
             complaintModel.paginate({$and:[{createdBy:userID},
                 {$or:[{complaintNo:{$regex:search}},{complaintStatus:{$regex:search}}]}
         ]}, { page: pageNumber, limit: pageSize }, (err, result) => {
             if (err) {
-                res.status(400).send({message:"error in fetching record",status:"failed",statusCode:400,errorMessage:err,complaints:[]});
+                return res.status(400).send({message:"error in fetching record",status:"failed",statusCode:400,errorMessage:err,complaints:[]});
             }else{
                 const { docs, total, limit, page, totalPages,prevPage,nextPage } = result;
-                res.status(200).send({ complaints: docs, Total:total, Limit:limit, Page:page, pages:totalPages,prevPage:prevPage, nextPage:nextPage});
+                return res.status(200).send({ complaints: docs, Total:total, Limit:limit, Page:page, pages:totalPages,prevPage:prevPage, nextPage:nextPage});
 
             }
             });
@@ -392,36 +430,53 @@ export const listComplaintController = (req, res) => {
             }
 
              if (complaintno){
-            complaintModel.paginate({_id:complaintno}, { page: pageNumber, limit: pageSize }, (err, result) => {
+            await complaintModel.paginate({_id:complaintno}, { page: pageNumber, limit: pageSize }, (err, result) => {
             if (err) {
-                res.status(400).send({message:"error in fetching record",status:"failed",statusCode:400,errorMessage:err,complaints:[]});
+                return res.status(400).send({message:"error in fetching record",status:false,statusCode:400,errorMessage:err,complaints:[]});
 
             }else{
-            const { docs, total, limit, page, totalPages,prevPage,nextPage } = result;
-            res.status(200).send({ complaints: docs, Total:total, Limit:limit, Page:page, pages:totalPages,prevPage:prevPage, nextPage:nextPage});
+                // console.log('aaaaaa',result.docs.length);
+                if(result.docs.length == 0){
+                    return res.status(200).send({ status:true,statusCode:200,message:"No record found",complaints: []});
+                }else{
+                    const { docs } = result;
+                   /* const hostname = window.location.hostname; 
+                    console.log("hostname",hostname);   
+                    var siteDocs = docs.siteDocuments;    
+                    siteDocs.forEach((siteDoc) =>{
+                        siteDoc.forEach((doc) => {
+                            doc.url = hostname+'/'+doc.documentName;
+                        })
+                    })
+
+                    */
+                    
+                    return res.status(200).send({ status:true,statusCode:200,complaints: docs});
+
+                }
 
             }
             });
 
             }
 
-            if (consumerID){
+            if (1==2){ // consumerID
             complaintModel.paginate({$and:[{"consumerDetail.mobileNo":consumerID},
                 {$or:[{complaintNo:{$regex:req.body.search}},{complaintStatus:{$regex:req.body.search}}]}
         ]}, { page: pageNumber, limit: pageSize }, (err, result) => {
             if (err) {
-                res.status(400).send({message:"error in fetching record",status:"failed",statusCode:400,errorMessage:err,complaints:[]});
+                return res.status(400).send({message:"error in fetching record",status:"failed",statusCode:400,errorMessage:err,complaints:[]});
 
             }else{
             const { docs, total, limit, page, totalPages,prevPage,nextPage } = result;
-            res.status(200).send({ complaints: docs, Total:total, Limit:limit, Page:page, pages:totalPages,prevPage:prevPage, nextPage:nextPage});
+            return res.status(200).send({ complaints: docs, Total:total, Limit:limit, Page:page, pages:totalPages,prevPage:prevPage, nextPage:nextPage});
 
             }
             });
 
             }
 
-
+                if (1==2){
                 try{
                 const pageNumber = req.query.page || 1;
                 const pageSize = req.query.pageSize || 50;
@@ -430,22 +485,21 @@ export const listComplaintController = (req, res) => {
                     createdAt: { $gte: firstDayOfMonth, $lte: now } // Filter records for the current month
                 }, { page: pageNumber, limit: pageSize }, (err, result) => {
                 if (err) {
-                    res.status(400).send({message:"error in fetching record",status:"failed",statusCode:400,errorMessage:err,complaints:[]});
+                    return res.status(400).send({message:"error in fetching record",status:"failed",statusCode:400,errorMessage:err,complaints:[]});
                 }else{
 
                 const { docs, total, limit, page, totalPages,prevPage,nextPage    } = result;
-                res.status(200).send({ complaints: docs, Total:total, Limit:limit, Page:page, pages:totalPages,prevPage:prevPage, nextPage:nextPage});
+                return res.status(200).send({ complaints: docs, Total:total, Limit:limit, Page:page, pages:totalPages,prevPage:prevPage, nextPage:nextPage});
                    
                 }
                 });
         
             }catch(error){
-                const errormsg = new Error(error.message);
-                errormsg.statusCode = 500;
-                next(errormsg);
+                    return res.status(400).send({message:"error in fetching record",status:"failed",statusCode:400,errorMessage:error,complaints:[]});
         
             }
 
+            }
 
           /*  complaintModel.paginate(
                 {$or:[{firstname:{$regex:req.body.search}},{lastname:{$regex:req.body.search}},{email:{$regex:req.body.search}},{phone:{$regex:req.body.search}}
@@ -517,6 +571,225 @@ export const listComplaintCurrentMonthController = async (req, res) =>{
     }catch(err) {
         return res.status(400).send( {statusCode:400,status:false,error:err,complaints:[]});
     }
+}
+
+
+export const listComplaintCurrentMonthMobileController = async (req, res) =>{
+    try {
+        
+        // Get the current date
+        const now = new Date();
+        
+        // Get the first day of the current month
+        const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        
+        const {_id} = req.encodedUser;
+        
+        const loginPerson = await userModel.findById(_id);
+        var substationID = loginPerson.substation_id
+        
+        // console.log(_id);
+        // Perform the aggregation
+        // let openCount = 0;
+        let openComplaint = (await complaintModel.find({createdAt: { $gte: firstDayOfMonth, $lte: now },complaintStatus:"Open",substation_id:substationID})).length;
+        let assignedComplaint = (await complaintModel.find({createdAt: { $gte: firstDayOfMonth, $lte: now },complaintStatus:"Assigned",substation_id:substationID})).length;
+        let inProgressComplaint = (await complaintModel.find({createdAt: { $gte: firstDayOfMonth, $lte: now },complaintStatus:"InProgress",substation_id:substationID})).length;
+        let closedComplaint = (await complaintModel.find({createdAt: { $gte: firstDayOfMonth, $lte: now },complaintStatus:"Closed",substation_id:substationID})).length;
+        let onHoldComplaint = (await complaintModel.find({createdAt: { $gte: firstDayOfMonth, $lte: now },complaintStatus:"OnHold",substation_id:substationID})).length;
+        let approvedComplaint = (await complaintModel.find({createdAt: { $gte: firstDayOfMonth, $lte: now },complaintStatus:"Approved",substation_id:substationID})).length;
+        let rejectedComplaint = (await complaintModel.find({createdAt: { $gte: firstDayOfMonth, $lte: now },complaintStatus:"Rejected",substation_id:substationID})).length;
+        let shutdownComplaint = (await complaintModel.find({createdAt: { $gte: firstDayOfMonth, $lte: now },complaintStatus:"Shutdown",substation_id:substationID})).length;
+        let pendingComplaint = (await complaintModel.find({createdAt: { $gte: firstDayOfMonth, $lte: now },complaintStatus:"Pending",substation_id:substationID})).length;
+        var counts= {};
+        // if(openComplaint){
+        //     openCount = openComplaint;
+        // }
+        counts.Open = openComplaint;
+        counts.Assigned = assignedComplaint;
+        counts.InProgress = inProgressComplaint;
+        counts.Closed = closedComplaint;
+        counts.Hold = onHoldComplaint;
+        counts.Approved = approvedComplaint;
+        counts.Rejected = rejectedComplaint;
+        counts.Shutdown = shutdownComplaint;
+        counts.Pending = pendingComplaint;
+        // counts.Open = shutdownComplaint;
+
+        let mobileDashboardRecord = (await complaintModel.find(
+                {
+                   createdAt: { $gte: firstDayOfMonth, $lte: now },
+                    substation_id:substationID 
+                }
+
+        ).select('_id complaintNo consumerAddress shutdown complaintStatus consumerName consumerMobile consumerAccountNo registrationDate'));
+
+        if(mobileDashboardRecord){
+        return res.status(200).send( {statusCode:200,status:true,counts:counts, complaints:mobileDashboardRecord});
+        }else{
+            return res.status(400).send( {statusCode:400,status:false,counts:counts,message:"No record found", complaints:[]});
+        }
+
+       
+       
+    }catch(err) {
+        return res.status(400).send( {statusCode:400,status:false,error:err,complaints:[]});
+    }
+}
+
+
+export const webDashboardController = async (req, res) => {
+
+
+
+try {
+    const getSixMonthsAgo = (date) => {
+        let sixMonthsAgo = new Date(date);
+        sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+        return sixMonthsAgo;
+    }
+
+    function getOneYearAgo(date) {
+        let oneYearAgo = new Date(date);
+        oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+        return oneYearAgo;
+    }
+
+    const {_id} = req.encodedUser;
+    const loginPerson = await userModel.findById(_id);
+    var substationID = loginPerson.substation_id;
+
+    if (req.body.durarion == 'all') {
+        let openComplaint = (await complaintModel.find({complaintStatus: "Open", substation_id: substationID})).length;
+        let assignedComplaint = (await complaintModel.find({complaintStatus: "Assigned", substation_id: substationID})).length;
+        let inProgressComplaint = (await complaintModel.find({complaintStatus: "InProgress", substation_id: substationID})).length;
+        let closedComplaint = (await complaintModel.find({complaintStatus: "Closed", substation_id: substationID})).length;
+        let onHoldComplaint = (await complaintModel.find({complaintStatus: "OnHold", substation_id: substationID})).length;
+        let approvedComplaint = (await complaintModel.find({complaintStatus: "Approved", substation_id: substationID})).length;
+        let rejectedComplaint = (await complaintModel.find({complaintStatus: "Rejected", substation_id: substationID})).length;
+        let shutdownComplaint = (await complaintModel.find({complaintStatus: "Shutdown", substation_id: substationID})).length;
+        let pendingComplaint = (await complaintModel.find({complaintStatus: "Pending", substation_id: substationID})).length;
+
+        var counts = {};
+        counts.Open = openComplaint;
+        counts.Assigned = assignedComplaint;
+        counts.InProgress = inProgressComplaint;
+        counts.Closed = closedComplaint;
+        counts.Hold = onHoldComplaint;
+        counts.Approved = approvedComplaint;
+        counts.Rejected = rejectedComplaint;
+        counts.Shutdown = shutdownComplaint;
+        counts.Pending = pendingComplaint;
+
+        console.log(counts);
+
+        await complaintModel.paginate({
+            substation_id:substationID// Filter records for the current month
+        }, { page: pageNumber, limit: pageSize }, (err, result) => {
+        if (err) {
+        return res.status(200).send({message:"no record found",status:false,statusCode:200,errorMessage:err,complaints:[]});
+        }else{
+        const { counts:counts, docs, totalDocs, limit, page, totalPages,prevPage,nextPage} = result;
+        return res.status(200).send({ status:true,statusCode:200,complaints: docs, Total:totalDocs, Limit:limit, Page:page, pages:totalPages,prevPage:prevPage, nextPage:nextPage});
+        }
+        });
+
+
+       /* let mobileDashboardRecord = await complaintModel.find({
+            substation_id: substationID
+        }).select('_id complaintNo consumerAddress shutdown complaintStatus consumerName consumerMobile consumerAccountNo registrationDate');
+
+        if (mobileDashboardRecord) {
+            return res.status(200).send({statusCode: 200, status: true, counts: counts, complaints: mobileDashboardRecord});
+        } else {
+            return res.status(400).send({statusCode: 400, status: false, counts: counts, message: "No record found", complaints: []});
+        } */
+
+    } else {
+        const now = new Date();
+        let firstDayOfMonth;
+
+        if (req.body.durarion == 'sixMonth') {
+            firstDayOfMonth = getSixMonthsAgo(now);
+        } else if (req.body.durarion == 'oneYear') {
+            firstDayOfMonth = getOneYearAgo(now);
+        } else if (req.body.durarion == 'currentMont') {
+            firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        }
+
+        //  console.log("firstDayOfMonth9090",firstDayOfMonth);
+
+        let openComplaint = (await complaintModel.find({
+            createdAt: { $gte: firstDayOfMonth, $lte: now },
+            complaintStatus: "Open",
+            substation_id: substationID
+        })).length;
+        let assignedComplaint = (await complaintModel.find({
+            createdAt: { $gte: firstDayOfMonth, $lte: now },
+            complaintStatus: "Assigned",
+            substation_id: substationID
+        })).length;
+        let inProgressComplaint = (await complaintModel.find({
+            createdAt: { $gte: firstDayOfMonth, $lte: now },
+            complaintStatus: "InProgress",
+            substation_id: substationID
+        })).length;
+        let closedComplaint = (await complaintModel.find({
+            createdAt: { $gte: firstDayOfMonth, $lte: now },
+            complaintStatus: "Closed",
+            substation_id: substationID
+        })).length;
+        let onHoldComplaint = (await complaintModel.find({
+            createdAt: { $gte: firstDayOfMonth, $lte: now },
+            complaintStatus: "OnHold",
+            substation_id: substationID
+        })).length;
+        let approvedComplaint = (await complaintModel.find({
+            createdAt: { $gte: firstDayOfMonth, $lte: now },
+            complaintStatus: "Approved",
+            substation_id: substationID
+        })).length;
+        let rejectedComplaint = (await complaintModel.find({
+            createdAt: { $gte: firstDayOfMonth, $lte: now },
+            complaintStatus: "Rejected",
+            substation_id: substationID
+        })).length;
+        let shutdownComplaint = (await complaintModel.find({
+            createdAt: { $gte: firstDayOfMonth, $lte: now },
+            complaintStatus: "Shutdown",
+            substation_id: substationID
+        })).length;
+        let pendingComplaint = (await complaintModel.find({
+            createdAt: { $gte: firstDayOfMonth, $lte: now },
+            complaintStatus: "Pending",
+            substation_id: substationID
+        })).length;
+
+        var counts = {};
+        counts.Open = openComplaint;
+        counts.Assigned = assignedComplaint;
+        counts.InProgress = inProgressComplaint;
+        counts.Closed = closedComplaint;
+        counts.Hold = onHoldComplaint;
+        counts.Approved = approvedComplaint;
+        counts.Rejected = rejectedComplaint;
+        counts.Shutdown = shutdownComplaint;
+        counts.Pending = pendingComplaint;
+
+        let mobileDashboardRecord = await complaintModel.find({
+            createdAt: { $gte: firstDayOfMonth, $lte: now },
+            substation_id: substationID
+        }).select('_id complaintNo consumerAddress shutdown complaintStatus consumerName consumerMobile consumerAccountNo registrationDate');
+
+        if (mobileDashboardRecord) {
+            return res.status(200).send({statusCode: 200, status: true, counts: counts, complaints: mobileDashboardRecord});
+        } else {
+            return res.status(400).send({statusCode: 400, status: false, counts: counts, message: "No record found", complaints: []});
+        }
+    }
+} catch (err) {
+    return res.status(400).send({statusCode: 400, status: false, error: err, complaints: []});
+}
+
 }
 
 export const addSitePhotoController = async (req, res) => {

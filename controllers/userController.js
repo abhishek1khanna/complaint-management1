@@ -1,7 +1,8 @@
 // import asyncHandler from "express-async-handler";
 import userModel from "../models/userModel.js";
 import JWT from 'jsonwebtoken';
-import { hashPassword,comparePassword, generateToken } from "../utils/util.js";
+import { generateToken } from "../utils/util.js";
+import subStationModel from "../models/subStationModel.js";
 
 export const registerController = async (req,res,next) => {
     try{
@@ -26,41 +27,54 @@ export const loginController = async (req,res,next) => {
     try{
     const {username,password} = req.body;
     if (!username || !password ) {
-        return res.status(400).send({message:"All fields are required",status:false,statusCode:400,user:[]});
+        return res.status(400).send({message:"All fields are required",status:false,statusCode:400,user:{}});
     }
     const user = await userModel.findOne({username:username,password:password});
     if (!user) {
-        return res.status(404).send({message:"User not found",status:false,statusCode:404,user:[]});
+        return res.status(404).send({message:"User not found",status:false,statusCode:404,user:{}});
     }
-    /* const isMatch = await comparePassword(password,user.password);
-    if (!isMatch) {
-         res.status(401).send({message:"invalid password",status:"failed",statusCode:401,user:[]});
-    } */
+   
+    //console.log('ssssss',user.substation_id.toString());
+    //let subStationString = user.substation_id.toString();
+   // let substationDetail = await subStationModel.findById(user.substation_id);
+   // console.log("substationDetail",substationDetail);
+  //  console.log("user.substation_id",user.substation_id);
+  //  if (substationDetail) {
+  //    user.subStationName = substationDetail.sub_station;
+  //  }
+
+   //  console.log("substationDetail user",user);
+
 
     const token = await generateToken(user._id);
     return res.status(200).send({message:"user logged in successfully",status:true,statusCode:200,user:user,token:token});
     }catch(error){
-        return res.status(500).send({message:"error occured in user login",status:false,statusCode:500,user:[],errorMessage:error});
+        return res.status(500).send({message:"error occured in user login",status:false,statusCode:500,user:{},errorMessage:error});
     }
 };
 
 export const logoutController = async (req, res) => {
     try{
-        //req.session.destroy();
-       // res.clearCookie("cookieName");
-       // ls.clear('userDetail');
-
-       // const tokenStr = req.headers.authorization;
-      //  const token = tokenStr.split(' ')[1];
-         const {_id} = req.encodedUser;
-         const token = await generateToken(_id);
-       //  await JWT.destroy(token);
-
-        res.status(200).send({success: true,message: "logout successful"});
-    }catch(err){
-        res.status(400).send({error: err.message});
+       /*  if(!req.headers.authorization){
+            return res.status(401).send({message:"unauthorized",status:false,statusCode:401});
+        }
+        const tokenStr = req.headers.authorization;
+        const token = tokenStr.split(' ')[1];
+        const decoded = await JWT.verify(token, process.env.JWT_SECRET);
+        const {_id} = decoded;
+        const user = await userModel.findOne({_id:_id});
+        if(!user){
+            return res.status(401).send({message:"unauthorized",status:false,statusCode:401});
+        } */
+       // const token1 = await generateToken(_id);
+      //  await JWT.destroy(token1);
+        return res.status(200).send({message:"user logged out successfully",status:true,statusCode:200});
     }
-    res.status(200).send({success: true});
+    catch(err){
+        return res.status(500).send({message:"error occured in user logout",status:false,statusCode:500,errorMessage:err});
+       
+    }
+    
 }
 
 export const userListController = async (req,res,next) => {
@@ -147,11 +161,11 @@ export const mobileLoginController = async (req, res) => {
     try{
     const { otp, mobile_number } = req.body;
      if (!otp || !mobile_number ) {
-        return res.status(404).send({message:"fields can not be left blank",status:false,statusCode:404,user:[]});
+        return res.status(404).send({message:"fields can not be left blank",status:false,statusCode:404,user:{}});
     }
     const user = await userModel.findOne({phone:mobile_number,"otp.token":otp});
     if (!user) {
-       return res.status(404).send({message:"User not found",status:false,statusCode:404,user:[]});
+       return res.status(404).send({message:"User not found",status:false,statusCode:404,user:{}});
     }
     let otpData = user.otp;
     
@@ -165,11 +179,11 @@ export const mobileLoginController = async (req, res) => {
         return res.status(200).send({message:"user logged in successfully",status:true,statusCode:200,user:user,token:token});
 
     }else{
-         return res.status(400).json({ message: 'Invalid OTP', statusCode: 400,status:false,user:[] });
+         return res.status(400).json({ message: 'Invalid OTP', statusCode: 400,status:false,user:{} });
     }
 
     }catch(e){
-        return res.status(500).send({message:"error occured in user login",status:false,statusCode:500,errorMessage:e,user:[]});
+        return res.status(500).send({message:"error occured in user login",status:false,statusCode:500,errorMessage:e,user:{}});
     }
 
 }

@@ -118,7 +118,7 @@ const complaintSchema = new mongoose.Schema({
       complaintStatus: {
         type: String,
         required: true,
-        enum: ['Open','Assigned', 'In Progress', 'Closed', 'On Hold','Approved', 'Rejected', 'Shutdown','Pending'],
+        enum: ['Open','Assigned', 'InProgress', 'Closed', 'OnHold','Approved', 'Rejected', 'Shutdown','Pending'],
         default: 'Open'
       },
      
@@ -126,23 +126,29 @@ const complaintSchema = new mongoose.Schema({
         remark: String,
         date: Date,
         remarkBy: String,
+        remarkByID: String,
         // Add any other relevant fields for staff remarks
       }],
       selfRemarks: [{
         remark: String,
         date: Date,
         remarkBy: String,
+        remarkByID: String,
         // Add any other relevant fields for self-remarks
       }],
       siteDocuments: [{
         documentName: String,
         documentURL: String,
         uploadDate: Date,
+        uploadBy: String,
+        uploadByID: String,
         // Add any other relevant fields for site documents
       }],
       shutdown: [{
         startTime: Date,
         endTime: Date,
+        requestBy: String,
+        requestByID: String,
         // Add any other relevant fields for shutdown
       }]
      
